@@ -1,0 +1,8 @@
+appsettings.Development.json
+appsettings.json
+appsettings.Test.json
+appsettings.Production.json
+StrykerDG.StrykerApi.csproj.user
+.vs/
+bin/
+obj/

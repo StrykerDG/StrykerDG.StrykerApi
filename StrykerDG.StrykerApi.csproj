@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UserSecretsId>debc4023-597e-4b42-aa10-4b55357b4050</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>.</DockerfileContext>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.10.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StrykerDG.StrykerActors\StrykerDG.StrykerActors.csproj" />
+    <ProjectReference Include="..\StrykerDG.StrykerServices\StrykerDG.StrykerServices.csproj" />
+  </ItemGroup>
+
+
+</Project>
