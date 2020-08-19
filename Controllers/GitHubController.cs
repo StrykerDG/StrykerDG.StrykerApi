@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Akka.Actor;
+using Microsoft.AspNetCore.Mvc;
+using StrykerDG.StrykerActors.GitHub.Messages;
 using StrykerDG.StrykerServices.GitHubService;
 using StrykerDG.StrykerServices.Interfaces;
 using System;
@@ -12,17 +14,20 @@ namespace StrykerDG.StrykerApi.Controllers
     [Route("GitHub")]
     public class GitHubController : ControllerBase
     {
-        private IStrykerService _service { get; set; }
+        private IActorRef _githubActor { get; set; }
 
-        public GitHubController(IStrykerService service)
+        public GitHubController(IEnumerable<IActorRef> actorRefs)
         {
-            _service = service;
+            _githubActor = actorRefs
+                .Where(ar => ar.Path.ToString().Contains("GitHubActor"))
+                .FirstOrDefault();
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetSomething()
+        [Route("User/{username}")]
+        public async Task<IActionResult> GetUser(string username)
         {
-            var result = await _service.Get("users/strykerdg");
+            var result = await _githubActor.Ask(new AskForUserProfile(username));
             return Ok(result);
         }
     }

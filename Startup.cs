@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StrykerDG.StrykerActors.GitHub;
 using StrykerDG.StrykerApi.Configuration;
 using StrykerDG.StrykerServices.GitHubService;
 using StrykerDG.StrykerServices.Interfaces;
@@ -21,6 +22,7 @@ namespace StrykerDG.StrykerApi
     public class Startup
     {
         public IConfiguration Configuration { get; }
+        IActorRef GitHubActor { get; set; }
 
         public Startup(IWebHostEnvironment env)
         {
@@ -60,17 +62,20 @@ namespace StrykerDG.StrykerApi
                 var actorSystem = ActorSystem.Create("StrykerDG");
 
                 // Register the actors
+                var serviceScopeFactory = provider.GetService<IServiceScopeFactory>();
+                GitHubActor = actorSystem.ActorOf(Props.Create(() => new GitHubActor(serviceScopeFactory)), "GitHubActor");
 
                 return actorSystem;
             });
 
             // Access Actors via DI
+            services.AddSingleton(_ => GitHubActor);
 
             services.AddControllers();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime)
         {
             if (env.IsDevelopment())
             {
@@ -86,6 +91,18 @@ namespace StrykerDG.StrykerApi
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+            });
+
+            lifetime.ApplicationStarted.Register(() =>
+            {
+                // Start Akka.net
+                app.ApplicationServices.GetService<ActorSystem>();
+            });
+
+            lifetime.ApplicationStopping.Register(() =>
+            {
+                // Stop Akka.net
+                app.ApplicationServices.GetService<ActorSystem>().Terminate().Wait();
             });
         }
     }
