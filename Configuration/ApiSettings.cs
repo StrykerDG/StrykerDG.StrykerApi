@@ -7,6 +7,7 @@ namespace StrykerDG.StrykerApi.Configuration
 {
     public class ApiSettings
     {
+        public string[] CORS { get; set; }
         public SecuritySettings SecuritySettings { get; set; }
     }
 }

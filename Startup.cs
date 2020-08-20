@@ -23,6 +23,7 @@ namespace StrykerDG.StrykerApi
     {
         public IConfiguration Configuration { get; }
         IActorRef GitHubActor { get; set; }
+        readonly string AllowedOrigins = "CorsPolicy";
 
         public Startup(IWebHostEnvironment env)
         {
@@ -71,6 +72,20 @@ namespace StrykerDG.StrykerApi
             // Access Actors via DI
             services.AddSingleton(_ => GitHubActor);
 
+            // Setup CORS
+            if(settings.CORS != null)
+            {
+                services.AddCors(options =>
+                {
+                    options.AddPolicy(
+                        AllowedOrigins,
+                        builder => 
+                            builder.WithOrigins(settings.CORS)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader());
+                });
+            }
+
             services.AddControllers();
         }
 
@@ -87,6 +102,8 @@ namespace StrykerDG.StrykerApi
             app.UseRouting();
 
             app.UseAuthorization();
+
+            app.UseCors(AllowedOrigins);
 
             app.UseEndpoints(endpoints =>
             {
