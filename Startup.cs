@@ -11,19 +11,25 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using StrykerDG.StrykerActors.GitHub;
+using StrykerDG.StrykerActors.Twitch;
 using StrykerDG.StrykerApi.Configuration;
 using StrykerDG.StrykerServices.GitHubService;
 using StrykerDG.StrykerServices.Interfaces;
+using StrykerDG.StrykerServices.TwitchService;
 
 namespace StrykerDG.StrykerApi
 {
     public class Startup
     {
         public IConfiguration Configuration { get; }
-        IActorRef GitHubActor { get; set; }
         readonly string AllowedOrigins = "CorsPolicy";
+
+        public IActorRef GitHubActor { get; set; }
+        public IActorRef TwitchActor { get; set; }
 
         public Startup(IWebHostEnvironment env)
         {
@@ -56,6 +62,12 @@ namespace StrykerDG.StrykerApi
                 );
             });
 
+            services.AddTransient<IStrykerService>((provider) =>
+            {
+                var clientFactory = provider.GetService<IHttpClientFactory>();
+                return new TwitchService(clientFactory);
+            });
+
             // Add Akka.net
             services.AddSingleton((provider) =>
             {
@@ -64,13 +76,24 @@ namespace StrykerDG.StrykerApi
 
                 // Register the actors
                 var serviceScopeFactory = provider.GetService<IServiceScopeFactory>();
-                GitHubActor = actorSystem.ActorOf(Props.Create(() => new GitHubActor(serviceScopeFactory)), "GitHubActor");
+                var twitchId = settings.SecuritySettings.TwitchClientId;
+                var twitchSecret = settings.SecuritySettings.TwitchClientSecret;
+
+                GitHubActor = actorSystem.ActorOf(
+                    Props.Create(() => new GitHubActor(serviceScopeFactory)), 
+                    "GitHubActor"
+                );
+                TwitchActor = actorSystem.ActorOf(
+                    Props.Create(() => new TwitchActor(serviceScopeFactory, twitchId, twitchSecret)), 
+                    "TwitchActor"
+                );
 
                 return actorSystem;
             });
 
             // Access Actors via DI
             services.AddSingleton(_ => GitHubActor);
+            services.AddSingleton(_ => TwitchActor);
 
             // Setup CORS
             if(settings.CORS != null)

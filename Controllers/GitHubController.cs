@@ -27,7 +27,7 @@ namespace StrykerDG.StrykerApi.Controllers
         [Route("User/{username}")]
         public async Task<IActionResult> GetUser(string username)
         {
-            var result = await _githubActor.Ask(new AskForUserProfile(username));
+            var result = await _githubActor.Ask(new AskForGitHubUserProfile(username));
             return Ok(result);
         }
     }

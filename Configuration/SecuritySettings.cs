@@ -9,5 +9,8 @@ namespace StrykerDG.StrykerApi.Configuration
     {
         public string GitHubToken { get; set; }
         public string GitHubUserAgent { get; set; }
+
+        public string TwitchClientId { get; set; }
+        public string TwitchClientSecret { get; set; }
     }
 }
