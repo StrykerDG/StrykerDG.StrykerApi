@@ -12,5 +12,7 @@ namespace StrykerDG.StrykerApi.Configuration
 
         public string TwitchClientId { get; set; }
         public string TwitchClientSecret { get; set; }
+
+        public string ClockifyKey { get; set; }
     }
 }
