@@ -14,9 +14,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using StrykerDG.StrykerActors.Clockify;
 using StrykerDG.StrykerActors.GitHub;
 using StrykerDG.StrykerActors.Twitch;
 using StrykerDG.StrykerApi.Configuration;
+using StrykerDG.StrykerServices.ClockifyService;
 using StrykerDG.StrykerServices.GitHubService;
 using StrykerDG.StrykerServices.Interfaces;
 using StrykerDG.StrykerServices.TwitchService;
@@ -30,6 +32,7 @@ namespace StrykerDG.StrykerApi
 
         public IActorRef GitHubActor { get; set; }
         public IActorRef TwitchActor { get; set; }
+        public IActorRef ClockifyActor { get; set; }
 
         public Startup(IWebHostEnvironment env)
         {
@@ -52,6 +55,7 @@ namespace StrykerDG.StrykerApi
 
             // Access Services via DI
             services.AddHttpClient();
+
             services.AddTransient<IStrykerService>((provider) =>
             {
                 var clientFactory = provider.GetService<IHttpClientFactory>();
@@ -68,6 +72,15 @@ namespace StrykerDG.StrykerApi
                 return new TwitchService(clientFactory);
             });
 
+            services.AddTransient<IStrykerService>((provider) =>
+            {
+                var clientFactory = provider.GetService<IHttpClientFactory>();
+                return new ClockifyService(
+                    clientFactory, 
+                    settings.SecuritySettings.ClockifyKey
+                );
+            });
+
             // Add Akka.net
             services.AddSingleton((provider) =>
             {
@@ -78,14 +91,30 @@ namespace StrykerDG.StrykerApi
                 var serviceScopeFactory = provider.GetService<IServiceScopeFactory>();
                 var twitchId = settings.SecuritySettings.TwitchClientId;
                 var twitchSecret = settings.SecuritySettings.TwitchClientSecret;
+                var validCacheDuration = TimeSpan.FromHours(2);
 
                 GitHubActor = actorSystem.ActorOf(
-                    Props.Create(() => new GitHubActor(serviceScopeFactory)), 
+                    Props.Create(() => new GitHubActor(
+                        serviceScopeFactory, 
+                        validCacheDuration)
+                    ), 
                     "GitHubActor"
                 );
                 TwitchActor = actorSystem.ActorOf(
-                    Props.Create(() => new TwitchActor(serviceScopeFactory, twitchId, twitchSecret)), 
+                    Props.Create(() => new TwitchActor(
+                        serviceScopeFactory, 
+                        twitchId, 
+                        twitchSecret, 
+                        validCacheDuration)
+                    ), 
                     "TwitchActor"
+                );
+                ClockifyActor = actorSystem.ActorOf(
+                    Props.Create(() => new ClockifyActor(
+                        serviceScopeFactory, 
+                        validCacheDuration)
+                    ),
+                    "ClockifyActor"
                 );
 
                 return actorSystem;
@@ -94,6 +123,7 @@ namespace StrykerDG.StrykerApi
             // Access Actors via DI
             services.AddSingleton(_ => GitHubActor);
             services.AddSingleton(_ => TwitchActor);
+            services.AddSingleton(_ => ClockifyActor);
 
             // Setup CORS
             if(settings.CORS != null)
@@ -141,6 +171,10 @@ namespace StrykerDG.StrykerApi
 
             lifetime.ApplicationStopping.Register(() =>
             {
+                // Revoke the acquired access tokens in our actors
+                var typedActor = TwitchActor as TwitchActor;
+                typedActor.RevokeToken().Wait();
+
                 // Stop Akka.net
                 app.ApplicationServices.GetService<ActorSystem>().Terminate().Wait();
             });
