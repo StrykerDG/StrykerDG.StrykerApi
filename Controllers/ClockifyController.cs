@@ -22,11 +22,11 @@ namespace StrykerDG.StrykerApi.Controllers
         }
 
         [HttpGet]
-        [Route("{workspace}/{user}/TimeEntries")]
-        public async Task<IActionResult> GetUserTimeEntries(string workspace, string user)
+        [Route("TimeEntries")]
+        public async Task<IActionResult> GetUserTimeEntries()
         {
             // TODO: Impliment filters
-            var result = await _clockifyActor.Ask(new AskForTimeEntries(workspace, user));
+            var result = await _clockifyActor.Ask(new AskForTimeEntries());
             return Ok(result);
         }
     }
